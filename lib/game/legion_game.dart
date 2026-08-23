@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 import 'package:flame/camera.dart';
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
@@ -16,6 +17,7 @@ class LegionGame extends FlameGame {
     ),
   );
   final _random = math.Random(7);
+  ui.Image? _background;
   double _lane = 0, _targetLane = 0, _distance = 0, _timer = 0;
   int _army = 10, _enemy = 20, _maxArmy = 10, _defeated = 0;
   RunPhase _phase = RunPhase.gate;
@@ -26,6 +28,8 @@ class LegionGame extends FlameGame {
   @override
   Future<void> onLoad() async {
     await super.onLoad();
+    images.prefix = 'assets/art/';
+    _background = await images.load('battlefield.png');
     camera.viewport = FixedResolutionViewport(resolution: Vector2(390, 844));
   }
 
@@ -121,42 +125,33 @@ class LegionGame extends FlameGame {
     super.render(canvas);
     final w = canvasSize.x, h = canvasSize.y;
     final p = Paint();
+    if (_background case final background?) {
+      canvas.drawImageRect(
+        background,
+        Rect.fromLTWH(
+          0,
+          0,
+          background.width.toDouble(),
+          background.height.toDouble(),
+        ),
+        Offset.zero & Size(w, h),
+        p,
+      );
+    } else {
+      canvas.drawRect(
+        Offset.zero & Size(w, h),
+        p..color = const Color(0xFF102C43),
+      );
+    }
     canvas.drawRect(
       Offset.zero & Size(w, h),
       p
         ..shader = const LinearGradient(
-          colors: [Color(0xFF18304A), Color(0xFF071321)],
+          colors: [Color(0x22061A30), Color(0x55030B15)],
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
         ).createShader(Offset.zero & Size(w, h)),
     );
-    final road = Path()
-      ..moveTo(w * .43, h * .12)
-      ..lineTo(w * .57, h * .12)
-      ..lineTo(w * .94, h)
-      ..lineTo(w * .06, h)
-      ..close();
-    canvas.drawPath(
-      road,
-      p
-        ..shader = null
-        ..color = const Color(0xFF243A4A),
-    );
-    p
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2
-      ..color = const Color(0xFF426176);
-    canvas.drawLine(Offset(w * .43, h * .12), Offset(w * .06, h), p);
-    canvas.drawLine(Offset(w * .57, h * .12), Offset(w * .94, h), p);
-    for (var i = 0; i < 8; i++) {
-      final y = h * (.16 + i * .1), t = (y - h * .12) / (h * .88);
-      canvas.drawLine(
-        Offset(w * (.43 - .37 * t), y),
-        Offset(w * (.57 + .37 * t), y),
-        p..color = const Color(0x334E7084),
-      );
-    }
-    _castle(canvas, w * .5, h * .13);
     _gate(canvas, w, h);
     _armyDraw(canvas, w, h, _army, false);
     if (_phase == RunPhase.encounter || _phase == RunPhase.finalBattle) {
@@ -232,24 +227,6 @@ class LegionGame extends FlameGame {
         p,
       );
     }
-  }
-
-  void _castle(Canvas c, double x, double y) {
-    final p = Paint()..color = const Color(0xFFB3C0CE);
-    c.drawRect(
-      Rect.fromCenter(center: Offset(x, y + 16), width: 48, height: 30),
-      p,
-    );
-    c.drawRect(
-      Rect.fromCenter(center: Offset(x - 20, y + 5), width: 14, height: 45),
-      p,
-    );
-    c.drawRect(
-      Rect.fromCenter(center: Offset(x + 20, y + 5), width: 14, height: 45),
-      p,
-    );
-    p.color = const Color(0xFF8A2840);
-    c.drawCircle(Offset(x, y + 24), 6, p);
   }
 
   void _effects(Canvas c, double w, double h) {

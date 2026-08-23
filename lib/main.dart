@@ -52,19 +52,7 @@ class Hud extends StatelessWidget {
     final result = state.phase == RunPhase.result;
     return Stack(
       children: [
-        Positioned(
-          top: 14,
-          left: 12,
-          right: 12,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              badge('STAGE 1-1', Icons.flag),
-              badge('⚔ ${state.army}', Icons.groups),
-              badge('☠ ${state.enemy}', Icons.warning_amber),
-            ],
-          ),
-        ),
+        Positioned(top: 12, left: 12, right: 12, child: _topBar(state)),
         Positioned(
           top: 67,
           left: 0,
@@ -83,13 +71,29 @@ class Hud extends StatelessWidget {
           Positioned(
             left: 0,
             right: 0,
-            bottom: 112,
+            bottom: 126,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 gateButton('+10', '민병대', () => game.chooseGate(0)),
                 gateButton('×2', '군단 증원', () => game.chooseGate(1)),
               ],
+            ),
+          ),
+        if (gate)
+          const Positioned(
+            left: 0,
+            right: 0,
+            bottom: 92,
+            child: Center(
+              child: Text(
+                'GATE 선택  •  좌우로 드래그하여 다음 전장을 준비하세요',
+                style: TextStyle(
+                  color: Colors.white60,
+                  fontSize: 11,
+                  letterSpacing: .2,
+                ),
+              ),
             ),
           ),
         if (result)
@@ -131,6 +135,96 @@ class Hud extends StatelessWidget {
     );
   }
 
+  Widget _topBar(LegionSnapshot state) => Column(
+    children: [
+      Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          badge('STAGE 1-1', Icons.flag),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+            decoration: BoxDecoration(
+              color: const Color(0xDD0A1728),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: const Color(0x66E6B65A)),
+            ),
+            child: const Text(
+              '인간 연합  •  RUN 01',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFFFFD166),
+              ),
+            ),
+          ),
+          badge('Ⅱ  일시정지', Icons.pause),
+        ],
+      ),
+      const SizedBox(height: 9),
+      Row(
+        children: [
+          Expanded(
+            child: _statCard(
+              Icons.groups,
+              '인간 군단',
+              state.army,
+              const Color(0xFFE7B95E),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _statCard(
+              Icons.warning_amber,
+              '좀비 군단',
+              state.enemy,
+              const Color(0xFFB9D3D7),
+            ),
+          ),
+        ],
+      ),
+      const SizedBox(height: 8),
+      ClipRRect(
+        borderRadius: BorderRadius.circular(5),
+        child: LinearProgressIndicator(
+          value: (state.stageDistance / 2.4).clamp(0, 1),
+          minHeight: 4,
+          backgroundColor: const Color(0x553E5368),
+          color: const Color(0xFFE6B65A),
+        ),
+      ),
+    ],
+  );
+
+  Widget _statCard(IconData icon, String label, int value, Color color) =>
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: const Color(0xC9101F31),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withValues(alpha: .35)),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 19, color: color),
+            const SizedBox(width: 7),
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(fontSize: 11, color: Colors.white70),
+              ),
+            ),
+            Text(
+              '$value',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
+                color: color,
+              ),
+            ),
+          ],
+        ),
+      );
+
   Widget badge(String text, IconData icon) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
     decoration: BoxDecoration(
@@ -152,9 +246,12 @@ class Hud extends StatelessWidget {
         child: FilledButton.tonal(
           onPressed: onPressed,
           style: FilledButton.styleFrom(
-            backgroundColor: const Color(0xDD1976B8),
+            backgroundColor: const Color(0xEE116DAD),
             foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 14),
+            elevation: 10,
+            shadowColor: const Color(0xFF36BFFF),
+            side: const BorderSide(color: Color(0xFF8FDEFF), width: 1.5),
+            padding: const EdgeInsets.symmetric(vertical: 13),
           ),
           child: Column(
             children: [
