@@ -26,7 +26,6 @@ class LegionGame extends FlameGame {
       event: stageOneEvent,
     ),
   );
-  final _random = math.Random(7);
   final List<CombatFx> _combatFx = [];
   final List<Projectile> _projectiles = [];
   ui.Image? _background;
@@ -35,6 +34,7 @@ class LegionGame extends FlameGame {
   ui.Image? _humanWalkSheet;
   ui.Image? _undeadWalkSheet;
   double _lane = 0, _targetLane = 0, _distance = 0, _timer = 0;
+  double _dragAccumulator = 0;
   double _summonTimer = 0,
       _knockback = 0,
       _enemyHitFlash = 0,
@@ -64,8 +64,13 @@ class LegionGame extends FlameGame {
     camera.viewport = FixedResolutionViewport(resolution: Vector2(390, 844));
   }
 
-  void moveBy(double d) =>
-      _targetLane = (_targetLane + d / 180).clamp(-1.0, 1.0);
+  void moveBy(double d) {
+    _dragAccumulator += d;
+    if (_dragAccumulator.abs() < 42) return;
+    final direction = _dragAccumulator.sign;
+    _dragAccumulator = 0;
+    _targetLane = (_targetLane + direction).clamp(-1.0, 1.0);
+  }
 
   void useHeroSkill() {
     if (_phase == RunPhase.gate ||
@@ -142,6 +147,7 @@ class LegionGame extends FlameGame {
   void restart() {
     _lane = 0;
     _targetLane = 0;
+    _dragAccumulator = 0;
     _distance = 0;
     _timer = 0;
     _summonTimer = 0;
@@ -205,7 +211,7 @@ class LegionGame extends FlameGame {
       _publish();
       return;
     }
-    _distance += dt * .12;
+    _distance += dt * .42;
     if (_phase == RunPhase.encounter || _phase == RunPhase.finalBattle) {
       _approach = math.min(1, _approach + dt * .045);
       if (_phase == RunPhase.finalBattle) {
@@ -311,17 +317,7 @@ class LegionGame extends FlameGame {
     final w = canvasSize.x, h = canvasSize.y;
     final p = Paint();
     if (_background case final background?) {
-      canvas.drawImageRect(
-        background,
-        Rect.fromLTWH(
-          0,
-          0,
-          background.width.toDouble(),
-          background.height.toDouble(),
-        ),
-        Offset.zero & Size(w, h),
-        p,
-      );
+      _drawScrollingBackground(canvas, w, h, background, p);
     } else {
       canvas.drawRect(
         Offset.zero & Size(w, h),
@@ -337,6 +333,7 @@ class LegionGame extends FlameGame {
           end: Alignment.bottomCenter,
         ).createShader(Offset.zero & Size(w, h)),
     );
+    _drawLaneGuides(canvas, w, h);
     _gate(canvas, w, h);
     _armyDraw(canvas, w, h, _army, false);
     _drawHero(canvas, w, h);
@@ -355,23 +352,58 @@ class LegionGame extends FlameGame {
     }
   }
 
+  void _drawScrollingBackground(
+    Canvas c,
+    double w,
+    double h,
+    ui.Image background,
+    Paint p,
+  ) {
+    // The player is the camera anchor. Repeating the long bridge texture makes
+    // forward motion readable without introducing a 3D camera or world.
+    final scroll = (_distance * 10).clamp(0.0, h * .35);
+    final destination = Rect.fromLTWH(0, -scroll, w, h * 1.35);
+    final source = Rect.fromLTWH(
+      0,
+      0,
+      background.width.toDouble(),
+      background.height.toDouble(),
+    );
+    c.drawImageRect(background, source, destination, p);
+  }
+
+  void _drawLaneGuides(Canvas c, double w, double h) {
+    final p = Paint()
+      ..color = const Color(0x335CCBFF)
+      ..strokeWidth = 1.5
+      ..style = PaintingStyle.stroke;
+    for (var lane = -1; lane <= 1; lane++) {
+      final top = Offset(w * (.5 + lane * .15), h * .16);
+      final bottom = Offset(w * (.5 + lane * .34), h * .9);
+      c.drawLine(top, bottom, p);
+    }
+  }
+
   void _armyDraw(Canvas c, double w, double h, int count, bool enemy) {
     final shown = math.min(count, enemy ? 90 : 110),
         base = enemy
-            ? h * (.28 + _approach * .28 - _knockback * .035)
-            : h * (.8 - _approach * .12);
+            ? h * (.16 + _approach * .42 - _knockback * .035)
+            : h * .79;
     final p = Paint();
     for (var i = 0; i < shown; i++) {
-      final row = i ~/ 10,
-          col = i % 10,
-          spread = (row + 1) * (enemy ? 5.0 : 6.0),
-          x =
-              w * .5 +
-              (col - 4.5) * spread +
-              (_random.nextDouble() - .5) * 5 +
-              _lane * w * .25 * (enemy ? .5 : 1),
-          y = base + row * (enemy ? 8 : 9),
-          s = enemy ? 1 - row * .018 : 1 - row * .012;
+      final lane = i % 3 - 1;
+      final rank = i ~/ 3;
+      final row = rank ~/ 3;
+      final column = rank % 3 - 1;
+      final laneWidth = enemy ? w * .22 : w * .25;
+      final x =
+          w * .5 +
+          lane * laneWidth +
+          column * w * .026 +
+          (((i * 37) % 11) - 5) * .7 +
+          _lane * w * .22;
+      final y = base + row * (enemy ? 10 : 12) + column.abs() * 2;
+      final s = enemy ? 1 - row * .014 : 1 - row * .01;
       final type = enemy ? UnitType.militia : _unitForIndex(i);
       final enemyType = enemy ? _enemyForIndex(i) : null;
       final body = enemy ? _enemyBodyColor(enemyType!) : _bodyColor(type);
@@ -395,8 +427,8 @@ class LegionGame extends FlameGame {
         );
         final destination = Rect.fromCenter(
           center: Offset(x, y - 17 * s),
-          width: 34 * s,
-          height: 58 * s,
+          width: 40 * s,
+          height: 68 * s,
         );
         c.drawImageRect(
           sheet,
@@ -558,7 +590,7 @@ class LegionGame extends FlameGame {
     for (var i = 0; i < count; i++) {
       _projectiles.add(
         Projectile(
-          x: .38 + i * .08,
+          x: (i % 3 - 1) * .22 + .5,
           y: .72,
           damage: math.max(1, (_archers * .04).round()),
         ),
@@ -617,10 +649,13 @@ class LegionGame extends FlameGame {
       final x = projectile.x * w;
       final y = projectile.y * h;
       final p = Paint()
-        ..color = const Color(0xFFE8F5C2)
-        ..strokeWidth = 2.5
+        ..color = const Color(0xFFFFF2A8)
+        ..strokeWidth = 4
         ..strokeCap = StrokeCap.round;
-      c.drawLine(Offset(x - 7, y + 9), Offset(x, y), p);
+      c.drawLine(Offset(x, y + 30), Offset(x, y - 4), p);
+      p.color = const Color(0xFFFFC857);
+      c.drawCircle(Offset(x, y), 6, p);
+      p.color = const Color(0xFFFFF7D1);
       c.drawCircle(Offset(x, y), 2.5, p);
     }
   }

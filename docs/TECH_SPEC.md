@@ -6,10 +6,10 @@
 - Web 우선 테스트, iOS/Android 세로 화면
 
 ## 구조
-`LegionPage`는 HUD와 `GameWidget`을 조합한다. `LegionGame`은 시간 진행, 입력 대상 lane, 전투 수치와 렌더링을 담당한다. `LegionSnapshot`은 게임 데이터와 Flutter UI 사이의 읽기 전용 상태 경계다.
+`LegionPage`는 HUD와 `GameWidget`을 조합한다. `LegionGame`은 시간 진행, 3-way lane 입력, 전투 수치와 렌더링을 담당한다. `LegionSnapshot`은 게임 데이터와 Flutter UI 사이의 읽기 전용 상태 경계다.
 
 ## 2.5D
-실제 좌표는 lane과 진행 거리만 사용한다. 도로는 사다리꼴로 그려 원근감을 만들고, 군단은 행 번호에 따라 간격·스케일을 줄인다. 실제 army 수는 표시 수(플레이어 110, 적 90)와 분리한다.
+실제 좌표는 3개 lane과 진행 거리만 사용한다. 플레이어는 하단 카메라 앵커로 고정하고, 배경 전장 텍스처를 위로 스크롤해 전진감을 만든다. 적 Formation은 진행 거리로 화면 아래쪽을 향해 접근한다. 군단은 행 번호에 따라 간격·스케일을 줄인다. 실제 army 수는 표시 수(플레이어 110, 적 90)와 분리한다.
 
 ## 전투 방향성과 좌표
 
