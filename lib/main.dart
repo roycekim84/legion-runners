@@ -50,6 +50,7 @@ class Hud extends StatelessWidget {
   Widget build(BuildContext context) {
     final gate = state.phase == RunPhase.gate;
     final result = state.phase == RunPhase.result;
+    final combat = !gate && !result;
     return Stack(
       children: [
         Positioned(top: 12, left: 12, right: 12, child: _topBar(state)),
@@ -101,6 +102,8 @@ class Hud extends StatelessWidget {
                     ],
             ),
           ),
+        if (combat)
+          Positioned(right: 16, bottom: 28, child: _heroSkillButton(state)),
         if (gate)
           const Positioned(
             left: 0,
@@ -282,6 +285,54 @@ class Hud extends StatelessWidget {
       style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: color),
     ),
   );
+
+  Widget _heroSkillButton(LegionSnapshot state) {
+    final ready = state.heroCooldown <= 0;
+    return GestureDetector(
+      onTap: ready ? game.useHeroSkill : null,
+      child: Container(
+        width: 78,
+        height: 78,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: ready ? const Color(0xFFB85B42) : const Color(0xCC26364A),
+          border: Border.all(
+            color: ready ? const Color(0xFFFFD166) : Colors.white24,
+            width: 2,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: ready ? const Color(0x99FF9C5C) : Colors.transparent,
+              blurRadius: 16,
+              spreadRadius: 2,
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              ready ? Icons.flash_on : Icons.hourglass_top,
+              color: const Color(0xFFFFE7A7),
+              size: 25,
+            ),
+            Text(
+              ready ? '돌격' : '${state.heroCooldown.ceil()}s',
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w900,
+                color: Colors.white,
+              ),
+            ),
+            const Text(
+              '기사단장',
+              style: TextStyle(fontSize: 9, color: Colors.white70),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   Widget badge(String text, IconData icon) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),

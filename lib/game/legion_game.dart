@@ -21,13 +21,14 @@ class LegionGame extends FlameGame {
       gateCount: 0,
       militia: 10,
       enemyType: EnemyType.zombie,
+      heroCooldown: 0,
     ),
   );
   final _random = math.Random(7);
   final List<CombatFx> _combatFx = [];
   ui.Image? _background;
   double _lane = 0, _targetLane = 0, _distance = 0, _timer = 0;
-  double _summonTimer = 0, _knockback = 0;
+  double _summonTimer = 0, _knockback = 0, _heroCooldown = 0;
   int _army = 10, _enemy = 20, _maxArmy = 10, _defeated = 0;
   int _gateCount = 0, _militia = 10, _swordsmen = 0, _archers = 0, _knights = 0;
   EnemyType _enemyType = EnemyType.zombie;
@@ -46,6 +47,24 @@ class LegionGame extends FlameGame {
 
   void moveBy(double d) =>
       _targetLane = (_targetLane + d / 180).clamp(-1.0, 1.0);
+
+  void useHeroSkill() {
+    if (_phase == RunPhase.gate ||
+        _phase == RunPhase.result ||
+        _heroCooldown > 0) {
+      return;
+    }
+    _heroCooldown = 8;
+    final damage = math.min(_enemy, math.max(12, (_armyPower * .28).round()));
+    _enemy = math.max(0, _enemy - damage);
+    _defeated += damage;
+    _knockback = 1;
+    _message = '기사단장 돌격! 적 $damage마리 격퇴';
+    _combatFx.add(CombatFx.heroCharge(x: .5, y: .65));
+    if (_enemy == 0 && _gateCount >= 2) _finish(true);
+    _publish();
+  }
+
   void chooseGate(int option) {
     if (_phase != RunPhase.gate) return;
     if (_gateCount == 0 && option == 0) {
@@ -84,6 +103,7 @@ class LegionGame extends FlameGame {
     _timer = 0;
     _summonTimer = 0;
     _knockback = 0;
+    _heroCooldown = 0;
     _army = 10;
     _enemy = 20;
     _maxArmy = 10;
@@ -105,6 +125,7 @@ class LegionGame extends FlameGame {
     super.update(dt);
     _lane += (_targetLane - _lane) * math.min(1, dt * 7);
     _knockback = math.max(0, _knockback - dt * 2.4);
+    _heroCooldown = math.max(0, _heroCooldown - dt);
     for (final fx in _combatFx) {
       fx.life -= dt;
     }
@@ -173,6 +194,7 @@ class LegionGame extends FlameGame {
     archers: _archers,
     knights: _knights,
     enemyType: _enemyType,
+    heroCooldown: _heroCooldown,
   );
 
   double get _armyPower =>
@@ -220,6 +242,7 @@ class LegionGame extends FlameGame {
     );
     _gate(canvas, w, h);
     _armyDraw(canvas, w, h, _army, false);
+    _drawHero(canvas, w, h);
     if (_phase == RunPhase.encounter || _phase == RunPhase.finalBattle) {
       _armyDraw(canvas, w, h, _enemy, true);
       _renderCombatFx(canvas, w, h);
@@ -261,6 +284,20 @@ class LegionGame extends FlameGame {
         p,
       );
     }
+  }
+
+  void _drawHero(Canvas c, double w, double h) {
+    final x = w * .5 + _lane * w * .25;
+    final y = h * .88;
+    final p = Paint()..color = const Color(0xFF163B63);
+    c.drawCircle(Offset(x, y), 14, p);
+    p.color = const Color(0xFFFFD166);
+    c.drawCircle(Offset(x, y - 12), 5, p);
+    p
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2
+      ..color = const Color(0xFFFFE9A6);
+    c.drawCircle(Offset(x, y - 12), 8, p);
   }
 
   EnemyType _enemyForIndex(int index) {
@@ -402,6 +439,9 @@ class LegionGame extends FlameGame {
         c.drawCircle(Offset(x, y), 7 + progress * 18, p);
         p.style = PaintingStyle.stroke;
         c.drawCircle(Offset(x, y), 18 + progress * 12, p);
+      } else if (fx.kind == FxKind.heroCharge) {
+        c.drawLine(Offset(x - 70, y + 28), Offset(x + 60, y - 34), p);
+        c.drawCircle(Offset(x, y), 20 + progress * 28, p);
       } else {
         p.style = PaintingStyle.fill;
         c.drawCircle(Offset(x, y), 4 + progress * 16, p);
@@ -410,7 +450,7 @@ class LegionGame extends FlameGame {
   }
 }
 
-enum FxKind { arrow, slash, charge, hit, knockback, summon }
+enum FxKind { arrow, slash, charge, hit, knockback, summon, heroCharge }
 
 class CombatFx {
   final FxKind kind;
@@ -482,6 +522,15 @@ class CombatFx {
         color: const Color(0xFFDC66FF),
         maxLife: 1.0,
       );
+  CombatFx.heroCharge({required double x, required double y})
+    : this(
+        kind: FxKind.heroCharge,
+        x: x,
+        y: y,
+        dy: -.18,
+        color: const Color(0xFFFFD166),
+        maxLife: .9,
+      );
 }
 
 class LegionSnapshot {
@@ -491,6 +540,7 @@ class LegionSnapshot {
   final String message;
   final int gateCount, militia, swordsmen, archers, knights;
   final EnemyType enemyType;
+  final double heroCooldown;
   const LegionSnapshot({
     required this.phase,
     required this.army,
@@ -503,6 +553,7 @@ class LegionSnapshot {
     this.archers = 0,
     this.knights = 0,
     this.enemyType = EnemyType.zombie,
+    this.heroCooldown = 0,
     this.maxArmy = 10,
     this.defeated = 0,
   });
