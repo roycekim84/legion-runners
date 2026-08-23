@@ -8,7 +8,7 @@ enum RunPhase { gate, encounter, finalBattle, result }
 
 enum UnitType { militia, swordsman, archer, knight }
 
-enum EnemyType { zombie, skeleton, ghoul, undeadKnight }
+enum EnemyType { zombie, skeleton, ghoul, undeadKnight, necromancer }
 
 class LegionGame extends FlameGame {
   final snapshot = ValueNotifier(
@@ -27,6 +27,7 @@ class LegionGame extends FlameGame {
   final List<CombatFx> _combatFx = [];
   ui.Image? _background;
   double _lane = 0, _targetLane = 0, _distance = 0, _timer = 0;
+  double _summonTimer = 0, _knockback = 0;
   int _army = 10, _enemy = 20, _maxArmy = 10, _defeated = 0;
   int _gateCount = 0, _militia = 10, _swordsmen = 0, _archers = 0, _knights = 0;
   EnemyType _enemyType = EnemyType.zombie;
@@ -81,6 +82,8 @@ class LegionGame extends FlameGame {
     _targetLane = 0;
     _distance = 0;
     _timer = 0;
+    _summonTimer = 0;
+    _knockback = 0;
     _army = 10;
     _enemy = 20;
     _maxArmy = 10;
@@ -101,6 +104,7 @@ class LegionGame extends FlameGame {
   void update(double dt) {
     super.update(dt);
     _lane += (_targetLane - _lane) * math.min(1, dt * 7);
+    _knockback = math.max(0, _knockback - dt * 2.4);
     for (final fx in _combatFx) {
       fx.life -= dt;
     }
@@ -108,6 +112,15 @@ class LegionGame extends FlameGame {
     if (_phase == RunPhase.result) return;
     _distance += dt * .12;
     if (_phase == RunPhase.encounter || _phase == RunPhase.finalBattle) {
+      if (_phase == RunPhase.finalBattle) {
+        _summonTimer += dt;
+        if (_summonTimer > 5.0) {
+          _summonTimer = 0;
+          _enemy += 15;
+          _message = '네크로맨서가 좀비 15마리를 소환했습니다!';
+          _combatFx.add(CombatFx.summon(x: .5, y: .28));
+        }
+      }
       _timer += dt;
       final cadence = _phase == RunPhase.finalBattle ? 1.7 : 2.2;
       if (_timer > cadence) {
@@ -170,6 +183,7 @@ class LegionGame extends FlameGame {
     EnemyType.skeleton => .085,
     EnemyType.ghoul => .12,
     EnemyType.undeadKnight => .065,
+    EnemyType.necromancer => .04,
   };
 
   @override
@@ -222,7 +236,7 @@ class LegionGame extends FlameGame {
 
   void _armyDraw(Canvas c, double w, double h, int count, bool enemy) {
     final shown = math.min(count, enemy ? 90 : 110),
-        base = enemy ? h * .28 : h * .8;
+        base = enemy ? h * (.28 - _knockback * .035) : h * .8;
     final p = Paint();
     for (var i = 0; i < shown; i++) {
       final row = i ~/ 10,
@@ -252,6 +266,7 @@ class LegionGame extends FlameGame {
   EnemyType _enemyForIndex(int index) {
     if (_phase == RunPhase.finalBattle) {
       if (index % 7 == 0) return EnemyType.undeadKnight;
+      if (index % 11 == 0) return EnemyType.necromancer;
       if (index % 4 == 0) return EnemyType.ghoul;
       if (index % 3 == 0) return EnemyType.skeleton;
     }
@@ -263,6 +278,7 @@ class LegionGame extends FlameGame {
     EnemyType.skeleton => const Color(0xFF8F9DA0),
     EnemyType.ghoul => const Color(0xFF7D4F88),
     EnemyType.undeadKnight => const Color(0xFF393F69),
+    EnemyType.necromancer => const Color(0xFF542A78),
   };
 
   Color _enemyHeadColor(EnemyType type) => switch (type) {
@@ -270,6 +286,7 @@ class LegionGame extends FlameGame {
     EnemyType.skeleton => const Color(0xFFE3E4D0),
     EnemyType.ghoul => const Color(0xFFDB8EBA),
     EnemyType.undeadKnight => const Color(0xFFFF647C),
+    EnemyType.necromancer => const Color(0xFFDC66FF),
   };
 
   UnitType _unitForIndex(int index) {
@@ -329,6 +346,7 @@ class LegionGame extends FlameGame {
   }
 
   void _spawnCombatFx() {
+    _knockback = math.min(1, _knockback + .75);
     if (_archers > 0) {
       for (var i = 0; i < math.min(4, (_archers / 4).ceil()); i++) {
         _combatFx.add(
@@ -342,6 +360,7 @@ class LegionGame extends FlameGame {
     }
     if (_knights > 0) _combatFx.add(CombatFx.charge(x: .5, y: .66));
     _combatFx.add(CombatFx.hit(x: .5, y: .38));
+    _combatFx.add(CombatFx.knockback(x: .5, y: .38));
   }
 
   void _renderCombatFx(Canvas c, double w, double h) {
@@ -375,6 +394,14 @@ class LegionGame extends FlameGame {
       } else if (fx.kind == FxKind.charge) {
         c.drawLine(Offset(x - 26, y + 20), Offset(x + 22, y - 18), p);
         c.drawCircle(Offset(x, y), 12 + progress * 10, p);
+      } else if (fx.kind == FxKind.knockback) {
+        c.drawLine(Offset(x - 20, y), Offset(x + 20, y - 8), p);
+        c.drawLine(Offset(x - 12, y + 10), Offset(x + 12, y + 2), p);
+      } else if (fx.kind == FxKind.summon) {
+        p.style = PaintingStyle.fill;
+        c.drawCircle(Offset(x, y), 7 + progress * 18, p);
+        p.style = PaintingStyle.stroke;
+        c.drawCircle(Offset(x, y), 18 + progress * 12, p);
       } else {
         p.style = PaintingStyle.fill;
         c.drawCircle(Offset(x, y), 4 + progress * 16, p);
@@ -383,7 +410,7 @@ class LegionGame extends FlameGame {
   }
 }
 
-enum FxKind { arrow, slash, charge, hit }
+enum FxKind { arrow, slash, charge, hit, knockback, summon }
 
 class CombatFx {
   final FxKind kind;
@@ -438,6 +465,22 @@ class CombatFx {
         y: y,
         color: const Color(0xFFFF8E5B),
         maxLife: .4,
+      );
+  CombatFx.knockback({required double x, required double y})
+    : this(
+        kind: FxKind.knockback,
+        x: x,
+        y: y,
+        color: const Color(0xFFFFD166),
+        maxLife: .45,
+      );
+  CombatFx.summon({required double x, required double y})
+    : this(
+        kind: FxKind.summon,
+        x: x,
+        y: y,
+        color: const Color(0xFFDC66FF),
+        maxLife: 1.0,
       );
 }
 

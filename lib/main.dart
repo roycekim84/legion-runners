@@ -266,6 +266,7 @@ class Hud extends StatelessWidget {
     EnemyType.skeleton => '스켈레톤',
     EnemyType.ghoul => '구울',
     EnemyType.undeadKnight => '언데드 기사',
+    EnemyType.necromancer => '네크로맨서',
   };
 
   Widget _unitChip(String label, int value, Color color) => Container(
