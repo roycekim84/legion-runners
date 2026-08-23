@@ -196,7 +196,7 @@ class Hud extends StatelessWidget {
           Expanded(
             child: _statCard(
               Icons.warning_amber,
-              '좀비 군단',
+              '${enemyName(state.enemyType)} 군단',
               state.enemy,
               const Color(0xFFB9D3D7),
             ),
@@ -260,6 +260,13 @@ class Hud extends StatelessWidget {
       ],
     ),
   );
+
+  String enemyName(EnemyType type) => switch (type) {
+    EnemyType.zombie => '좀비',
+    EnemyType.skeleton => '스켈레톤',
+    EnemyType.ghoul => '구울',
+    EnemyType.undeadKnight => '언데드 기사',
+  };
 
   Widget _unitChip(String label, int value, Color color) => Container(
     margin: const EdgeInsets.only(right: 5),

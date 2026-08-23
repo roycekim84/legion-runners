@@ -8,6 +8,8 @@ enum RunPhase { gate, encounter, finalBattle, result }
 
 enum UnitType { militia, swordsman, archer, knight }
 
+enum EnemyType { zombie, skeleton, ghoul, undeadKnight }
+
 class LegionGame extends FlameGame {
   final snapshot = ValueNotifier(
     const LegionSnapshot(
@@ -18,6 +20,7 @@ class LegionGame extends FlameGame {
       stageDistance: 0,
       gateCount: 0,
       militia: 10,
+      enemyType: EnemyType.zombie,
     ),
   );
   final _random = math.Random(7);
@@ -26,6 +29,7 @@ class LegionGame extends FlameGame {
   double _lane = 0, _targetLane = 0, _distance = 0, _timer = 0;
   int _army = 10, _enemy = 20, _maxArmy = 10, _defeated = 0;
   int _gateCount = 0, _militia = 10, _swordsmen = 0, _archers = 0, _knights = 0;
+  EnemyType _enemyType = EnemyType.zombie;
   RunPhase _phase = RunPhase.gate;
   String _message = '첫 번째 선택: 병력을 불리세요';
 
@@ -68,6 +72,7 @@ class LegionGame extends FlameGame {
     _maxArmy = math.max(_maxArmy, _army);
     _phase = RunPhase.encounter;
     _enemy = _gateCount == 1 ? 20 : 80;
+    _enemyType = _gateCount == 1 ? EnemyType.zombie : EnemyType.skeleton;
     _publish();
   }
 
@@ -85,6 +90,7 @@ class LegionGame extends FlameGame {
     _swordsmen = 0;
     _archers = 0;
     _knights = 0;
+    _enemyType = EnemyType.zombie;
     _combatFx.clear();
     _phase = RunPhase.gate;
     _message = '첫 번째 선택: 병력을 불리세요';
@@ -106,10 +112,7 @@ class LegionGame extends FlameGame {
       final cadence = _phase == RunPhase.finalBattle ? 1.7 : 2.2;
       if (_timer > cadence) {
         _timer = 0;
-        final loss = math.max(
-          1,
-          (_enemy * (_phase == RunPhase.finalBattle ? .045 : .07)).round(),
-        );
+        final loss = math.max(1, (_enemy * _enemyPressure).round());
         final damage = math.max(
           1,
           (_armyPower * (_phase == RunPhase.finalBattle ? .1 : .12)).round(),
@@ -127,6 +130,7 @@ class LegionGame extends FlameGame {
         } else if (_enemy == 0 && _gateCount >= 2) {
           _phase = RunPhase.finalBattle;
           _enemy = 150;
+          _enemyType = EnemyType.undeadKnight;
           _message = '최종 좀비 군단이 접근합니다!';
         }
         _publish();
@@ -155,10 +159,18 @@ class LegionGame extends FlameGame {
     swordsmen: _swordsmen,
     archers: _archers,
     knights: _knights,
+    enemyType: _enemyType,
   );
 
   double get _armyPower =>
       _militia + _swordsmen * 1.2 + _archers * 1.35 + _knights * 2.1;
+
+  double get _enemyPressure => switch (_enemyType) {
+    EnemyType.zombie => _phase == RunPhase.finalBattle ? .045 : .07,
+    EnemyType.skeleton => .085,
+    EnemyType.ghoul => .12,
+    EnemyType.undeadKnight => .065,
+  };
 
   @override
   void render(Canvas canvas) {
@@ -224,10 +236,11 @@ class LegionGame extends FlameGame {
           y = base + row * (enemy ? 8 : 9),
           s = enemy ? 1 - row * .018 : 1 - row * .012;
       final type = enemy ? UnitType.militia : _unitForIndex(i);
-      final body = enemy ? const Color(0xFF35454B) : _bodyColor(type);
+      final enemyType = enemy ? _enemyForIndex(i) : null;
+      final body = enemy ? _enemyBodyColor(enemyType!) : _bodyColor(type);
       p.color = body;
       c.drawCircle(Offset(x, y), 6 * s, p);
-      p.color = enemy ? const Color(0xFF9DB0B9) : _headColor(type);
+      p.color = enemy ? _enemyHeadColor(enemyType!) : _headColor(type);
       c.drawCircle(Offset(x, y - 5 * s), 3.2 * s, p);
       c.drawRect(
         Rect.fromCenter(center: Offset(x, y + 3), width: 5 * s, height: 8 * s),
@@ -235,6 +248,29 @@ class LegionGame extends FlameGame {
       );
     }
   }
+
+  EnemyType _enemyForIndex(int index) {
+    if (_phase == RunPhase.finalBattle) {
+      if (index % 7 == 0) return EnemyType.undeadKnight;
+      if (index % 4 == 0) return EnemyType.ghoul;
+      if (index % 3 == 0) return EnemyType.skeleton;
+    }
+    return _enemyType;
+  }
+
+  Color _enemyBodyColor(EnemyType type) => switch (type) {
+    EnemyType.zombie => const Color(0xFF556A61),
+    EnemyType.skeleton => const Color(0xFF8F9DA0),
+    EnemyType.ghoul => const Color(0xFF7D4F88),
+    EnemyType.undeadKnight => const Color(0xFF393F69),
+  };
+
+  Color _enemyHeadColor(EnemyType type) => switch (type) {
+    EnemyType.zombie => const Color(0xFFB8C3A9),
+    EnemyType.skeleton => const Color(0xFFE3E4D0),
+    EnemyType.ghoul => const Color(0xFFDB8EBA),
+    EnemyType.undeadKnight => const Color(0xFFFF647C),
+  };
 
   UnitType _unitForIndex(int index) {
     if (index < _knights) return UnitType.knight;
@@ -411,6 +447,7 @@ class LegionSnapshot {
   final double stageDistance;
   final String message;
   final int gateCount, militia, swordsmen, archers, knights;
+  final EnemyType enemyType;
   const LegionSnapshot({
     required this.phase,
     required this.army,
@@ -422,6 +459,7 @@ class LegionSnapshot {
     this.swordsmen = 0,
     this.archers = 0,
     this.knights = 0,
+    this.enemyType = EnemyType.zombie,
     this.maxArmy = 10,
     this.defeated = 0,
   });
