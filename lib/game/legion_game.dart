@@ -28,6 +28,7 @@ class LegionGame extends FlameGame {
   );
   final _random = math.Random(7);
   final List<CombatFx> _combatFx = [];
+  final List<Projectile> _projectiles = [];
   ui.Image? _background;
   ui.Image? _humanSheet;
   ui.Image? _undeadSheet;
@@ -159,6 +160,7 @@ class LegionGame extends FlameGame {
     _enemyType = EnemyType.zombie;
     _event = stageOneEvent;
     _combatFx.clear();
+    _projectiles.clear();
     _phase = RunPhase.gate;
     _message = '첫 번째 선택: 병력을 불리세요';
     _publish();
@@ -171,6 +173,22 @@ class LegionGame extends FlameGame {
     _knockback = math.max(0, _knockback - dt * 2.4);
     _heroCooldown = math.max(0, _heroCooldown - dt);
     _walkClock += dt;
+    for (final projectile in _projectiles) {
+      projectile.y -= projectile.speed * dt;
+      projectile.life -= dt;
+    }
+    final hits = _projectiles
+        .where((p) => p.y <= p.targetY && p.life > 0)
+        .toList();
+    _projectiles.removeWhere((p) => p.life <= 0 || p.y <= p.targetY);
+    for (final projectile in hits) {
+      final damage = math.min(_enemy, projectile.damage);
+      _enemy = math.max(0, _enemy - damage);
+      _defeated += damage;
+      _knockback = math.min(1, _knockback + .25);
+      _combatFx.add(CombatFx.hit(x: projectile.x, y: projectile.targetY));
+      if (_enemy == 0) _handleEnemyCleared();
+    }
     for (final fx in _combatFx) {
       fx.life -= dt;
     }
@@ -195,7 +213,7 @@ class LegionGame extends FlameGame {
         final loss = math.max(1, (_enemy * _enemyPressure).round());
         final damage = math.max(
           1,
-          (_armyPower *
+          (_meleePower *
                   _powerMultiplier *
                   (_phase == RunPhase.finalBattle ? .1 : .12))
               .round(),
@@ -204,16 +222,11 @@ class LegionGame extends FlameGame {
         _enemy = math.max(0, _enemy - damage);
         _defeated += damage;
         _spawnCombatFx();
+        _spawnProjectiles();
         if (_army == 0) {
           _finish(false);
-        } else if (_enemy == 0 && _gateCount == 1) {
-          _phase = RunPhase.gate;
-          _message = '두 번째 선택: 검사 강화 또는 기사 편성';
-          _enemy = 80;
-        } else if (_enemy == 0 && _gateCount >= 2) {
-          _phase = RunPhase.event;
-          _event = stageOneEvent;
-          _message = _event.title;
+        } else if (_enemy == 0) {
+          _handleEnemyCleared();
         }
         _publish();
       }
@@ -248,6 +261,21 @@ class LegionGame extends FlameGame {
 
   double get _armyPower =>
       _militia + _swordsmen * 1.2 + _archers * 1.35 + _knights * 2.1;
+
+  double get _meleePower => _militia + _swordsmen * 1.2 + _knights * 2.1;
+
+  void _handleEnemyCleared() {
+    _projectiles.clear();
+    if (_gateCount == 1) {
+      _phase = RunPhase.gate;
+      _message = '두 번째 선택: 검사·궁수·기사 편성';
+      _enemy = 80;
+    } else if (_gateCount >= 2) {
+      _phase = RunPhase.event;
+      _event = stageOneEvent;
+      _message = _event.title;
+    }
+  }
 
   double get _enemyPressure => switch (_enemyType) {
     EnemyType.zombie => _phase == RunPhase.finalBattle ? .045 : .07,
@@ -481,13 +509,6 @@ class LegionGame extends FlameGame {
 
   void _spawnCombatFx() {
     _knockback = math.min(1, _knockback + .75);
-    if (_archers > 0) {
-      for (var i = 0; i < math.min(4, (_archers / 4).ceil()); i++) {
-        _combatFx.add(
-          CombatFx.arrow(x: .38 + i * .08, y: .72, dx: .08, dy: -.42),
-        );
-      }
-    }
     if (_swordsmen > 0) {
       _combatFx.add(CombatFx.slash(x: .42, y: .42));
       _combatFx.add(CombatFx.slash(x: .58, y: .45));
@@ -495,6 +516,20 @@ class LegionGame extends FlameGame {
     if (_knights > 0) _combatFx.add(CombatFx.charge(x: .5, y: .66));
     _combatFx.add(CombatFx.hit(x: .5, y: .38));
     _combatFx.add(CombatFx.knockback(x: .5, y: .38));
+  }
+
+  void _spawnProjectiles() {
+    if (_archers == 0) return;
+    final count = math.min(4, (_archers / 4).ceil());
+    for (var i = 0; i < count; i++) {
+      _projectiles.add(
+        Projectile(
+          x: .38 + i * .08,
+          y: .72,
+          damage: math.max(1, (_archers * .04).round()),
+        ),
+      );
+    }
   }
 
   void _renderCombatFx(Canvas c, double w, double h) {
@@ -544,10 +579,29 @@ class LegionGame extends FlameGame {
         c.drawCircle(Offset(x, y), 4 + progress * 16, p);
       }
     }
+    for (final projectile in _projectiles) {
+      final x = projectile.x * w;
+      final y = projectile.y * h;
+      final p = Paint()
+        ..color = const Color(0xFFE8F5C2)
+        ..strokeWidth = 2.5
+        ..strokeCap = StrokeCap.round;
+      c.drawLine(Offset(x - 7, y + 9), Offset(x, y), p);
+      c.drawCircle(Offset(x, y), 2.5, p);
+    }
   }
 }
 
 enum FxKind { arrow, slash, charge, hit, knockback, summon, heroCharge }
+
+class Projectile {
+  double x, y;
+  final int damage;
+  final double speed = .62;
+  final double targetY = .38;
+  double life = 2;
+  Projectile({required this.x, required this.y, required this.damage});
+}
 
 class CombatFx {
   final FxKind kind;

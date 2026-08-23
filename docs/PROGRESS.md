@@ -191,3 +191,20 @@
 
 ### 남은 Gate 0
 실제 projectile 이동·충돌, 검사 근접 판정, 기사 돌진 판정, 피격 상태 머신을 구현해야 한다.
+
+## 2026-08-23 — Gate 0.2: Real Arrow Projectiles
+
+### 구현 완료
+- 궁수 화살을 실제 `Projectile` 객체로 분리
+- projectile 위치·속도·수명·피해량 관리
+- 아군 후방에서 적 전열 방향으로 화살 이동
+- 적 도달 시 병력 감소·처치 수 증가·넉백 판정
+- 원거리 피해와 민병대·검사·기사 근접 피해 분리
+- 적 전멸 시 다음 게이트/이벤트 전환 전에 projectile 정리
+- projectile 렌더링과 피격 burst 연결
+
+### 검증
+`flutter analyze`, `flutter test`, `flutter build web --release` 통과.
+
+### 남은 Gate 0
+검사 근접 충돌, 기사 돌진 충돌, 적 전면 공격, 피격·넉백·쓰러짐 상태 머신을 구현해야 한다.
