@@ -15,6 +15,8 @@
 ### 테스트 방법
 `flutter analyze`, `flutter build web`, Web에서 드래그 및 두 게이트 버튼을 순서대로 조작한다.
 
+검증 완료: `flutter analyze` 통과, `flutter test` 통과, `flutter build web --release` 성공.
+
 ### 남은 문제
 - 현재는 임시 도형 렌더링이며 실제 스프라이트·사운드가 없다.
 - 게이트/유닛/스테이지 수치가 코드에 임시로 있다.
