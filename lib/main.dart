@@ -74,10 +74,31 @@ class Hud extends StatelessWidget {
             bottom: 126,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                gateButton('+10', '민병대', () => game.chooseGate(0)),
-                gateButton('×2', '군단 증원', () => game.chooseGate(1)),
-              ],
+              children: state.gateCount == 0
+                  ? [
+                      gateButton('+10', '민병대', () => game.chooseGate(0)),
+                      gateButton('×2', '군단 증원', () => game.chooseGate(1)),
+                    ]
+                  : [
+                      gateButton(
+                        '+30',
+                        '검사',
+                        () => game.chooseGate(0),
+                        compact: true,
+                      ),
+                      gateButton(
+                        '+10',
+                        '궁수',
+                        () => game.chooseGate(1),
+                        compact: true,
+                      ),
+                      gateButton(
+                        '+10',
+                        '기사',
+                        () => game.chooseGate(2),
+                        compact: true,
+                      ),
+                    ],
             ),
           ),
         if (gate)
@@ -183,6 +204,8 @@ class Hud extends StatelessWidget {
         ],
       ),
       const SizedBox(height: 8),
+      _unitLine(state),
+      const SizedBox(height: 8),
       ClipRRect(
         borderRadius: BorderRadius.circular(5),
         child: LinearProgressIndicator(
@@ -225,6 +248,33 @@ class Hud extends StatelessWidget {
         ),
       );
 
+  Widget _unitLine(LegionSnapshot state) => SingleChildScrollView(
+    scrollDirection: Axis.horizontal,
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        _unitChip('민병대', state.militia, const Color(0xFFE1B35A)),
+        _unitChip('검사', state.swordsmen, const Color(0xFF72B7EB)),
+        _unitChip('궁수', state.archers, const Color(0xFF8BD6A3)),
+        _unitChip('기사', state.knights, const Color(0xFFFF739F)),
+      ],
+    ),
+  );
+
+  Widget _unitChip(String label, int value, Color color) => Container(
+    margin: const EdgeInsets.only(right: 5),
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+    decoration: BoxDecoration(
+      color: const Color(0xAA071525),
+      borderRadius: BorderRadius.circular(10),
+      border: Border.all(color: color.withValues(alpha: .45)),
+    ),
+    child: Text(
+      '$label  $value',
+      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: color),
+    ),
+  );
+
   Widget badge(String text, IconData icon) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
     decoration: BoxDecoration(
@@ -240,31 +290,32 @@ class Hud extends StatelessWidget {
       ],
     ),
   );
-  Widget gateButton(String title, String subtitle, VoidCallback onPressed) =>
-      SizedBox(
-        width: 150,
-        child: FilledButton.tonal(
-          onPressed: onPressed,
-          style: FilledButton.styleFrom(
-            backgroundColor: const Color(0xEE116DAD),
-            foregroundColor: Colors.white,
-            elevation: 10,
-            shadowColor: const Color(0xFF36BFFF),
-            side: const BorderSide(color: Color(0xFF8FDEFF), width: 1.5),
-            padding: const EdgeInsets.symmetric(vertical: 13),
+  Widget gateButton(
+    String title,
+    String subtitle,
+    VoidCallback onPressed, {
+    bool compact = false,
+  }) => SizedBox(
+    width: compact ? 116 : 150,
+    child: FilledButton.tonal(
+      onPressed: onPressed,
+      style: FilledButton.styleFrom(
+        backgroundColor: const Color(0xEE116DAD),
+        foregroundColor: Colors.white,
+        elevation: 10,
+        shadowColor: const Color(0xFF36BFFF),
+        side: const BorderSide(color: Color(0xFF8FDEFF), width: 1.5),
+        padding: EdgeInsets.symmetric(vertical: compact ? 11 : 13),
+      ),
+      child: Column(
+        children: [
+          Text(
+            title,
+            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900),
           ),
-          child: Column(
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              Text(subtitle),
-            ],
-          ),
-        ),
-      );
+          Text(subtitle),
+        ],
+      ),
+    ),
+  );
 }
