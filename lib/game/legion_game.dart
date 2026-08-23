@@ -37,6 +37,8 @@ class LegionGame extends FlameGame {
   double _lane = 0, _targetLane = 0, _distance = 0, _timer = 0;
   double _summonTimer = 0,
       _knockback = 0,
+      _enemyHitFlash = 0,
+      _playerHitFlash = 0,
       _heroCooldown = 0,
       _approach = 0,
       _walkClock = 0;
@@ -144,6 +146,8 @@ class LegionGame extends FlameGame {
     _timer = 0;
     _summonTimer = 0;
     _knockback = 0;
+    _enemyHitFlash = 0;
+    _playerHitFlash = 0;
     _heroCooldown = 0;
     _approach = 0;
     _walkClock = 0;
@@ -171,6 +175,8 @@ class LegionGame extends FlameGame {
     super.update(dt);
     _lane += (_targetLane - _lane) * math.min(1, dt * 7);
     _knockback = math.max(0, _knockback - dt * 2.4);
+    _enemyHitFlash = math.max(0, _enemyHitFlash - dt * 4);
+    _playerHitFlash = math.max(0, _playerHitFlash - dt * 4);
     _heroCooldown = math.max(0, _heroCooldown - dt);
     _walkClock += dt;
     for (final projectile in _projectiles) {
@@ -186,6 +192,7 @@ class LegionGame extends FlameGame {
       _enemy = math.max(0, _enemy - damage);
       _defeated += damage;
       _knockback = math.min(1, _knockback + .25);
+      _enemyHitFlash = .3;
       _combatFx.add(CombatFx.hit(x: projectile.x, y: projectile.targetY));
       if (_enemy == 0) _handleEnemyCleared();
     }
@@ -194,6 +201,10 @@ class LegionGame extends FlameGame {
     }
     _combatFx.removeWhere((fx) => fx.life <= 0);
     if (_phase == RunPhase.result) return;
+    if (_phase != RunPhase.encounter && _phase != RunPhase.finalBattle) {
+      _publish();
+      return;
+    }
     _distance += dt * .12;
     if (_phase == RunPhase.encounter || _phase == RunPhase.finalBattle) {
       _approach = math.min(1, _approach + dt * .045);
@@ -210,18 +221,25 @@ class LegionGame extends FlameGame {
       final cadence = _phase == RunPhase.finalBattle ? 1.7 : 2.2;
       if (_timer > cadence) {
         _timer = 0;
-        final loss = math.max(1, (_enemy * _enemyPressure).round());
+        final contact = _inContact;
+        final loss = contact
+            ? math.max(1, (_enemy * _enemyPressure).round())
+            : 0;
+        final chargeBonus = contact && _knights > 0 ? 1.35 : 1.0;
         final damage = math.max(
-          1,
+          0,
           (_meleePower *
                   _powerMultiplier *
+                  chargeBonus *
+                  (contact ? 1 : 0) *
                   (_phase == RunPhase.finalBattle ? .1 : .12))
               .round(),
         );
         _army = math.max(0, _army - loss);
         _enemy = math.max(0, _enemy - damage);
         _defeated += damage;
-        _spawnCombatFx();
+        if (loss > 0) _playerHitFlash = .3;
+        _spawnCombatFx(contact: contact);
         _spawnProjectiles();
         if (_army == 0) {
           _finish(false);
@@ -263,6 +281,8 @@ class LegionGame extends FlameGame {
       _militia + _swordsmen * 1.2 + _archers * 1.35 + _knights * 2.1;
 
   double get _meleePower => _militia + _swordsmen * 1.2 + _knights * 2.1;
+
+  bool get _inContact => _approach > .62;
 
   void _handleEnemyCleared() {
     _projectiles.clear();
@@ -322,6 +342,7 @@ class LegionGame extends FlameGame {
     _drawHero(canvas, w, h);
     if (_phase == RunPhase.encounter || _phase == RunPhase.finalBattle) {
       _armyDraw(canvas, w, h, _enemy, true);
+      _hitFlash(canvas, w, h);
       _renderCombatFx(canvas, w, h);
     }
     if (_phase == RunPhase.result) {
@@ -507,7 +528,8 @@ class LegionGame extends FlameGame {
     }
   }
 
-  void _spawnCombatFx() {
+  void _spawnCombatFx({required bool contact}) {
+    if (!contact) return;
     _knockback = math.min(1, _knockback + .75);
     if (_swordsmen > 0) {
       _combatFx.add(CombatFx.slash(x: .42, y: .42));
@@ -516,6 +538,18 @@ class LegionGame extends FlameGame {
     if (_knights > 0) _combatFx.add(CombatFx.charge(x: .5, y: .66));
     _combatFx.add(CombatFx.hit(x: .5, y: .38));
     _combatFx.add(CombatFx.knockback(x: .5, y: .38));
+  }
+
+  void _hitFlash(Canvas c, double w, double h) {
+    final p = Paint()..style = PaintingStyle.fill;
+    if (_enemyHitFlash > 0) {
+      p.color = const Color(0xFFFFB347).withValues(alpha: _enemyHitFlash);
+      c.drawCircle(Offset(w * .5, h * (.38 - _knockback * .035)), 20, p);
+    }
+    if (_playerHitFlash > 0) {
+      p.color = const Color(0xFFFF647C).withValues(alpha: _playerHitFlash);
+      c.drawCircle(Offset(w * .5, h * (.8 - _approach * .12)), 24, p);
+    }
   }
 
   void _spawnProjectiles() {
