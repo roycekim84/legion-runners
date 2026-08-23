@@ -21,6 +21,7 @@ class LegionGame extends FlameGame {
     ),
   );
   final _random = math.Random(7);
+  final List<CombatFx> _combatFx = [];
   ui.Image? _background;
   double _lane = 0, _targetLane = 0, _distance = 0, _timer = 0;
   int _army = 10, _enemy = 20, _maxArmy = 10, _defeated = 0;
@@ -84,6 +85,7 @@ class LegionGame extends FlameGame {
     _swordsmen = 0;
     _archers = 0;
     _knights = 0;
+    _combatFx.clear();
     _phase = RunPhase.gate;
     _message = '첫 번째 선택: 병력을 불리세요';
     _publish();
@@ -93,6 +95,10 @@ class LegionGame extends FlameGame {
   void update(double dt) {
     super.update(dt);
     _lane += (_targetLane - _lane) * math.min(1, dt * 7);
+    for (final fx in _combatFx) {
+      fx.life -= dt;
+    }
+    _combatFx.removeWhere((fx) => fx.life <= 0);
     if (_phase == RunPhase.result) return;
     _distance += dt * .12;
     if (_phase == RunPhase.encounter || _phase == RunPhase.finalBattle) {
@@ -111,6 +117,7 @@ class LegionGame extends FlameGame {
         _army = math.max(0, _army - loss);
         _enemy = math.max(0, _enemy - damage);
         _defeated += damage;
+        _spawnCombatFx();
         if (_army == 0) {
           _finish(false);
         } else if (_enemy == 0 && _gateCount == 1) {
@@ -189,7 +196,7 @@ class LegionGame extends FlameGame {
     _armyDraw(canvas, w, h, _army, false);
     if (_phase == RunPhase.encounter || _phase == RunPhase.finalBattle) {
       _armyDraw(canvas, w, h, _enemy, true);
-      _effects(canvas, w, h);
+      _renderCombatFx(canvas, w, h);
     }
     if (_phase == RunPhase.result) {
       canvas.drawRect(
@@ -285,15 +292,117 @@ class LegionGame extends FlameGame {
     }
   }
 
-  void _effects(Canvas c, double w, double h) {
-    final p = Paint()
-      ..strokeWidth = 3
-      ..color = const Color(0xFFFFC34F);
-    for (var i = 0; i < 5; i++) {
-      final x = w * (.2 + i * .15);
-      c.drawLine(Offset(x, h * .42), Offset(x + 12, h * .35), p);
+  void _spawnCombatFx() {
+    if (_archers > 0) {
+      for (var i = 0; i < math.min(4, (_archers / 4).ceil()); i++) {
+        _combatFx.add(
+          CombatFx.arrow(x: .38 + i * .08, y: .72, dx: .08, dy: -.42),
+        );
+      }
+    }
+    if (_swordsmen > 0) {
+      _combatFx.add(CombatFx.slash(x: .42, y: .42));
+      _combatFx.add(CombatFx.slash(x: .58, y: .45));
+    }
+    if (_knights > 0) _combatFx.add(CombatFx.charge(x: .5, y: .66));
+    _combatFx.add(CombatFx.hit(x: .5, y: .38));
+  }
+
+  void _renderCombatFx(Canvas c, double w, double h) {
+    for (final fx in _combatFx) {
+      final progress = 1 - fx.life / fx.maxLife;
+      final x = (fx.x + fx.dx * progress) * w;
+      final y = (fx.y + fx.dy * progress) * h;
+      final p = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round
+        ..strokeWidth = fx.kind == FxKind.arrow ? 2.5 : 3.5
+        ..color = fx.color.withValues(
+          alpha: (fx.life / fx.maxLife).clamp(0, 1),
+        );
+      if (fx.kind == FxKind.arrow) {
+        c.drawLine(
+          Offset(x - fx.dx * w * .06, y - fx.dy * h * .06),
+          Offset(x, y),
+          p,
+        );
+        p.style = PaintingStyle.fill;
+        c.drawCircle(Offset(x, y), 2.5, p);
+      } else if (fx.kind == FxKind.slash) {
+        c.drawArc(
+          Rect.fromCenter(center: Offset(x, y), width: 28, height: 20),
+          -1.1,
+          2.2,
+          false,
+          p,
+        );
+      } else if (fx.kind == FxKind.charge) {
+        c.drawLine(Offset(x - 26, y + 20), Offset(x + 22, y - 18), p);
+        c.drawCircle(Offset(x, y), 12 + progress * 10, p);
+      } else {
+        p.style = PaintingStyle.fill;
+        c.drawCircle(Offset(x, y), 4 + progress * 16, p);
+      }
     }
   }
+}
+
+enum FxKind { arrow, slash, charge, hit }
+
+class CombatFx {
+  final FxKind kind;
+  final double x, y, dx, dy, maxLife;
+  final Color color;
+  double life;
+  CombatFx({
+    required this.kind,
+    required this.x,
+    required this.y,
+    this.dx = 0,
+    this.dy = 0,
+    required this.color,
+    this.maxLife = .65,
+  }) : life = maxLife;
+  CombatFx.arrow({
+    required double x,
+    required double y,
+    required double dx,
+    required double dy,
+  }) : this(
+         kind: FxKind.arrow,
+         x: x,
+         y: y,
+         dx: dx,
+         dy: dy,
+         color: const Color(0xFFE8F5C2),
+         maxLife: .55,
+       );
+  CombatFx.slash({required double x, required double y})
+    : this(
+        kind: FxKind.slash,
+        x: x,
+        y: y,
+        color: const Color(0xFFFFD166),
+        maxLife: .35,
+      );
+  CombatFx.charge({required double x, required double y})
+    : this(
+        kind: FxKind.charge,
+        x: x,
+        y: y,
+        dx: 0,
+        dy: -.12,
+        color: const Color(0xFFFF719D),
+        maxLife: .75,
+      );
+  CombatFx.hit({required double x, required double y})
+    : this(
+        kind: FxKind.hit,
+        x: x,
+        y: y,
+        color: const Color(0xFFFF8E5B),
+        maxLife: .4,
+      );
 }
 
 class LegionSnapshot {
