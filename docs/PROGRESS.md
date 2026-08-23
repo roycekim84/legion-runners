@@ -141,3 +141,20 @@
 
 ### 다음 작업
 결과 화면 보상과 영구 성장 데이터를 연결한다.
+
+## 2026-08-23 — Prototype 0.9: Sprite Pass for Initial Run
+
+### 구현 완료
+- ImageGen으로 인간 4종 스프라이트 시트 생성
+- ImageGen으로 언데드 5종 스프라이트 시트 생성
+- 체크 패턴 제거 및 투명 PNG asset 정리
+- Flame에서 병종별 source rect로 스프라이트 렌더링
+- 원근에 따라 스프라이트 크기와 군집 간격 조절
+- 기존 임시 도형을 asset 로딩 실패 시에만 사용하는 fallback으로 변경
+- 초기 런 화면의 실제 캐릭터 가독성 개선
+
+### 검증
+`flutter analyze`, `flutter test`, `flutter build web --release` 통과.
+
+### 다음 작업
+스프라이트 애니메이션 프레임과 결과 보상 화면을 연결한다.

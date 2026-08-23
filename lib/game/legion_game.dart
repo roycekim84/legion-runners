@@ -29,6 +29,8 @@ class LegionGame extends FlameGame {
   final _random = math.Random(7);
   final List<CombatFx> _combatFx = [];
   ui.Image? _background;
+  ui.Image? _humanSheet;
+  ui.Image? _undeadSheet;
   double _lane = 0, _targetLane = 0, _distance = 0, _timer = 0;
   double _summonTimer = 0, _knockback = 0, _heroCooldown = 0;
   int _army = 10, _enemy = 20, _maxArmy = 10, _defeated = 0;
@@ -46,6 +48,8 @@ class LegionGame extends FlameGame {
     await super.onLoad();
     images.prefix = 'assets/art/';
     _background = await images.load('battlefield.png');
+    _humanSheet = await images.load('human_units_sheet.png');
+    _undeadSheet = await images.load('undead_units_sheet.png');
     camera.viewport = FixedResolutionViewport(resolution: Vector2(390, 844));
   }
 
@@ -306,6 +310,32 @@ class LegionGame extends FlameGame {
       final type = enemy ? UnitType.militia : _unitForIndex(i);
       final enemyType = enemy ? _enemyForIndex(i) : null;
       final body = enemy ? _enemyBodyColor(enemyType!) : _bodyColor(type);
+      final spriteIndex = enemy
+          ? _enemySpriteIndex(enemyType!)
+          : _unitSpriteIndex(type);
+      final sheet = enemy ? _undeadSheet : _humanSheet;
+      if (sheet != null) {
+        final columns = enemy ? 5 : 4;
+        final sourceWidth = sheet.width / columns;
+        final source = Rect.fromLTWH(
+          spriteIndex * sourceWidth,
+          0,
+          sourceWidth,
+          sheet.height.toDouble(),
+        );
+        final destination = Rect.fromCenter(
+          center: Offset(x, y - 17 * s),
+          width: 34 * s,
+          height: 58 * s,
+        );
+        c.drawImageRect(
+          sheet,
+          source,
+          destination,
+          p..filterQuality = FilterQuality.low,
+        );
+        continue;
+      }
       p.color = body;
       c.drawCircle(Offset(x, y), 6 * s, p);
       p.color = enemy ? _enemyHeadColor(enemyType!) : _headColor(type);
@@ -355,6 +385,21 @@ class LegionGame extends FlameGame {
     EnemyType.ghoul => const Color(0xFFDB8EBA),
     EnemyType.undeadKnight => const Color(0xFFFF647C),
     EnemyType.necromancer => const Color(0xFFDC66FF),
+  };
+
+  int _unitSpriteIndex(UnitType type) => switch (type) {
+    UnitType.militia => 0,
+    UnitType.swordsman => 1,
+    UnitType.archer => 2,
+    UnitType.knight => 3,
+  };
+
+  int _enemySpriteIndex(EnemyType type) => switch (type) {
+    EnemyType.zombie => 0,
+    EnemyType.skeleton => 1,
+    EnemyType.ghoul => 2,
+    EnemyType.undeadKnight => 3,
+    EnemyType.necromancer => 4,
   };
 
   UnitType _unitForIndex(int index) {
