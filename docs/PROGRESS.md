@@ -175,3 +175,19 @@
 
 ### 보류
 보상·영구 성장·추가 종족·다수 스테이지는 위 Screen 3/4 완료 판정 이후 진행한다.
+
+## 2026-08-23 — Gate 0.1: Directional Walk Pass
+
+### 구현 완료
+- 아군 후면 4행×4프레임 걷기 스프라이트 시트 생성·적용
+- 적 전면 5행×4프레임 걷기 스프라이트 시트 생성·적용
+- Flame 시간 기반 걷기 프레임 교체
+- 플레이어 군단은 아래에서 위로, 적 군단은 위에서 아래로 접근
+- 전투 진입·이벤트 선택 시 Formation 접근 거리 초기화
+- 기존 병종별 sprite fallback 유지
+
+### 검증
+`flutter analyze`, `flutter test`, `flutter build web --release` 통과.
+
+### 남은 Gate 0
+실제 projectile 이동·충돌, 검사 근접 판정, 기사 돌진 판정, 피격 상태 머신을 구현해야 한다.

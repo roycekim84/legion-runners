@@ -31,8 +31,14 @@ class LegionGame extends FlameGame {
   ui.Image? _background;
   ui.Image? _humanSheet;
   ui.Image? _undeadSheet;
+  ui.Image? _humanWalkSheet;
+  ui.Image? _undeadWalkSheet;
   double _lane = 0, _targetLane = 0, _distance = 0, _timer = 0;
-  double _summonTimer = 0, _knockback = 0, _heroCooldown = 0;
+  double _summonTimer = 0,
+      _knockback = 0,
+      _heroCooldown = 0,
+      _approach = 0,
+      _walkClock = 0;
   int _army = 10, _enemy = 20, _maxArmy = 10, _defeated = 0;
   int _gateCount = 0, _militia = 10, _swordsmen = 0, _archers = 0, _knights = 0;
   EnemyType _enemyType = EnemyType.zombie;
@@ -50,6 +56,8 @@ class LegionGame extends FlameGame {
     _background = await images.load('battlefield.png');
     _humanSheet = await images.load('human_units_sheet.png');
     _undeadSheet = await images.load('undead_units_sheet.png');
+    _humanWalkSheet = await images.load('human_walk_sheet.png');
+    _undeadWalkSheet = await images.load('undead_walk_sheet.png');
     camera.viewport = FixedResolutionViewport(resolution: Vector2(390, 844));
   }
 
@@ -90,6 +98,7 @@ class LegionGame extends FlameGame {
     }
     _maxArmy = math.max(_maxArmy, _army);
     _phase = RunPhase.finalBattle;
+    _approach = 0;
     _enemy = 150;
     _enemyType = EnemyType.undeadKnight;
     _publish();
@@ -121,6 +130,7 @@ class LegionGame extends FlameGame {
     _gateCount++;
     _maxArmy = math.max(_maxArmy, _army);
     _phase = RunPhase.encounter;
+    _approach = 0;
     _enemy = _gateCount == 1 ? 20 : 80;
     _enemyType = _gateCount == 1 ? EnemyType.zombie : EnemyType.skeleton;
     _publish();
@@ -134,6 +144,8 @@ class LegionGame extends FlameGame {
     _summonTimer = 0;
     _knockback = 0;
     _heroCooldown = 0;
+    _approach = 0;
+    _walkClock = 0;
     _powerMultiplier = 1;
     _army = 10;
     _enemy = 20;
@@ -158,6 +170,7 @@ class LegionGame extends FlameGame {
     _lane += (_targetLane - _lane) * math.min(1, dt * 7);
     _knockback = math.max(0, _knockback - dt * 2.4);
     _heroCooldown = math.max(0, _heroCooldown - dt);
+    _walkClock += dt;
     for (final fx in _combatFx) {
       fx.life -= dt;
     }
@@ -165,6 +178,7 @@ class LegionGame extends FlameGame {
     if (_phase == RunPhase.result) return;
     _distance += dt * .12;
     if (_phase == RunPhase.encounter || _phase == RunPhase.finalBattle) {
+      _approach = math.min(1, _approach + dt * .045);
       if (_phase == RunPhase.finalBattle) {
         _summonTimer += dt;
         if (_summonTimer > 5.0) {
@@ -294,7 +308,9 @@ class LegionGame extends FlameGame {
 
   void _armyDraw(Canvas c, double w, double h, int count, bool enemy) {
     final shown = math.min(count, enemy ? 90 : 110),
-        base = enemy ? h * (.28 - _knockback * .035) : h * .8;
+        base = enemy
+            ? h * (.28 + _approach * .28 - _knockback * .035)
+            : h * (.8 - _approach * .12);
     final p = Paint();
     for (var i = 0; i < shown; i++) {
       final row = i ~/ 10,
@@ -313,15 +329,20 @@ class LegionGame extends FlameGame {
       final spriteIndex = enemy
           ? _enemySpriteIndex(enemyType!)
           : _unitSpriteIndex(type);
-      final sheet = enemy ? _undeadSheet : _humanSheet;
+      final sheet = enemy
+          ? (_undeadWalkSheet ?? _undeadSheet)
+          : (_humanWalkSheet ?? _humanSheet);
       if (sheet != null) {
-        final columns = enemy ? 5 : 4;
+        final columns = 4;
+        final rows = enemy ? 5 : 4;
+        final frame = (_walkClock * 7).floor() % columns;
         final sourceWidth = sheet.width / columns;
+        final sourceHeight = sheet.height / rows;
         final source = Rect.fromLTWH(
-          spriteIndex * sourceWidth,
-          0,
+          frame * sourceWidth,
+          spriteIndex * sourceHeight,
           sourceWidth,
-          sheet.height.toDouble(),
+          sourceHeight,
         );
         final destination = Rect.fromCenter(
           center: Offset(x, y - 17 * s),
