@@ -50,7 +50,10 @@ class Hud extends StatelessWidget {
   Widget build(BuildContext context) {
     final gate = state.phase == RunPhase.gate;
     final result = state.phase == RunPhase.result;
-    final combat = !gate && !result;
+    final event = state.phase == RunPhase.event;
+    final combat =
+        (state.phase == RunPhase.encounter ||
+        state.phase == RunPhase.finalBattle);
     return Stack(
       children: [
         Positioned(top: 12, left: 12, right: 12, child: _topBar(state)),
@@ -116,6 +119,78 @@ class Hud extends StatelessWidget {
                   color: Colors.white60,
                   fontSize: 11,
                   letterSpacing: .2,
+                ),
+              ),
+            ),
+          ),
+        if (event)
+          Positioned.fill(
+            child: Center(
+              child: Card(
+                color: const Color(0xF0112235),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(18),
+                  side: const BorderSide(color: Color(0x99D6A84C)),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 18, 14, 16),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        '운명의 선택!',
+                        style: TextStyle(
+                          fontSize: 25,
+                          fontWeight: FontWeight.w900,
+                          color: Color(0xFFFFD166),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        state.event.prompt,
+                        style: const TextStyle(color: Colors.white70),
+                      ),
+                      const SizedBox(height: 14),
+                      ...List.generate(state.event.choices.length, (index) {
+                        final choice = state.event.choices[index];
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: SizedBox(
+                            width: 290,
+                            child: OutlinedButton(
+                              onPressed: () => game.chooseEvent(index),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.white,
+                                side: const BorderSide(
+                                  color: Color(0x8896CBEA),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 11,
+                                ),
+                              ),
+                              child: Column(
+                                children: [
+                                  Text(
+                                    choice.title,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                  Text(
+                                    choice.detail,
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.white70,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
                 ),
               ),
             ),

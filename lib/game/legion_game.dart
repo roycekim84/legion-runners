@@ -3,8 +3,9 @@ import 'dart:ui' as ui;
 import 'package:flame/camera.dart';
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
+import 'stage_data.dart';
 
-enum RunPhase { gate, encounter, finalBattle, result }
+enum RunPhase { gate, encounter, event, finalBattle, result }
 
 enum UnitType { militia, swordsman, archer, knight }
 
@@ -22,6 +23,7 @@ class LegionGame extends FlameGame {
       militia: 10,
       enemyType: EnemyType.zombie,
       heroCooldown: 0,
+      event: stageOneEvent,
     ),
   );
   final _random = math.Random(7);
@@ -32,6 +34,8 @@ class LegionGame extends FlameGame {
   int _army = 10, _enemy = 20, _maxArmy = 10, _defeated = 0;
   int _gateCount = 0, _militia = 10, _swordsmen = 0, _archers = 0, _knights = 0;
   EnemyType _enemyType = EnemyType.zombie;
+  EventDefinition _event = stageOneEvent;
+  double _powerMultiplier = 1;
   RunPhase _phase = RunPhase.gate;
   String _message = '첫 번째 선택: 병력을 불리세요';
 
@@ -62,6 +66,28 @@ class LegionGame extends FlameGame {
     _message = '기사단장 돌격! 적 $damage마리 격퇴';
     _combatFx.add(CombatFx.heroCharge(x: .5, y: .65));
     if (_enemy == 0 && _gateCount >= 2) _finish(true);
+    _publish();
+  }
+
+  void chooseEvent(int option) {
+    if (_phase != RunPhase.event) return;
+    if (option == 0) {
+      _army += 25;
+      _militia += 25;
+      _message = '난민을 구출했습니다. 민병대 +25';
+    } else if (option == 1) {
+      _army += 15;
+      _swordsmen += 15;
+      _message = '무기고를 확보했습니다. 검사 +15';
+    } else {
+      _army = math.max(1, (_army * .9).round());
+      _powerMultiplier += .4;
+      _message = '저주받은 성배의 힘이 깃듭니다. 공격력 +40%';
+    }
+    _maxArmy = math.max(_maxArmy, _army);
+    _phase = RunPhase.finalBattle;
+    _enemy = 150;
+    _enemyType = EnemyType.undeadKnight;
     _publish();
   }
 
@@ -104,6 +130,7 @@ class LegionGame extends FlameGame {
     _summonTimer = 0;
     _knockback = 0;
     _heroCooldown = 0;
+    _powerMultiplier = 1;
     _army = 10;
     _enemy = 20;
     _maxArmy = 10;
@@ -114,6 +141,7 @@ class LegionGame extends FlameGame {
     _archers = 0;
     _knights = 0;
     _enemyType = EnemyType.zombie;
+    _event = stageOneEvent;
     _combatFx.clear();
     _phase = RunPhase.gate;
     _message = '첫 번째 선택: 병력을 불리세요';
@@ -149,7 +177,10 @@ class LegionGame extends FlameGame {
         final loss = math.max(1, (_enemy * _enemyPressure).round());
         final damage = math.max(
           1,
-          (_armyPower * (_phase == RunPhase.finalBattle ? .1 : .12)).round(),
+          (_armyPower *
+                  _powerMultiplier *
+                  (_phase == RunPhase.finalBattle ? .1 : .12))
+              .round(),
         );
         _army = math.max(0, _army - loss);
         _enemy = math.max(0, _enemy - damage);
@@ -162,10 +193,9 @@ class LegionGame extends FlameGame {
           _message = '두 번째 선택: 검사 강화 또는 기사 편성';
           _enemy = 80;
         } else if (_enemy == 0 && _gateCount >= 2) {
-          _phase = RunPhase.finalBattle;
-          _enemy = 150;
-          _enemyType = EnemyType.undeadKnight;
-          _message = '최종 좀비 군단이 접근합니다!';
+          _phase = RunPhase.event;
+          _event = stageOneEvent;
+          _message = _event.title;
         }
         _publish();
       }
@@ -195,6 +225,7 @@ class LegionGame extends FlameGame {
     knights: _knights,
     enemyType: _enemyType,
     heroCooldown: _heroCooldown,
+    event: _event,
   );
 
   double get _armyPower =>
@@ -541,6 +572,7 @@ class LegionSnapshot {
   final int gateCount, militia, swordsmen, archers, knights;
   final EnemyType enemyType;
   final double heroCooldown;
+  final EventDefinition event;
   const LegionSnapshot({
     required this.phase,
     required this.army,
@@ -554,6 +586,7 @@ class LegionSnapshot {
     this.knights = 0,
     this.enemyType = EnemyType.zombie,
     this.heroCooldown = 0,
+    this.event = stageOneEvent,
     this.maxArmy = 10,
     this.defeated = 0,
   });
